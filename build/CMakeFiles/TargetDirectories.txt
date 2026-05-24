@@ -1,0 +1,3 @@
+C:/Users/abdim/Documents/sokoban/build/CMakeFiles/sokoban.dir
+C:/Users/abdim/Documents/sokoban/build/CMakeFiles/edit_cache.dir
+C:/Users/abdim/Documents/sokoban/build/CMakeFiles/rebuild_cache.dir
