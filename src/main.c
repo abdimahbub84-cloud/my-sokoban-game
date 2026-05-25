@@ -12,7 +12,6 @@
 
 int main(void)
 {
-    /* ── SDL2 init ───────────────────────────────────────────────────── */
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         fprintf(stderr, "SDL_Init error: %s\n", SDL_GetError());
         return 1;
@@ -22,7 +21,7 @@ int main(void)
         "Sokoban",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         WINDOW_W, WINDOW_H,
-        SDL_WINDOW_SHOWN
+        SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP
     );
     if (!win) {
         fprintf(stderr, "SDL_CreateWindow error: %s\n", SDL_GetError());
@@ -41,7 +40,12 @@ int main(void)
         return 1;
     }
 
-    /* ── Game setup ──────────────────────────────────────────────────── */
+    /* get actual fullscreen size and tell renderer */
+    int screen_w, screen_h;
+    SDL_GetWindowSize(win, &screen_w, &screen_h);
+    render_set_screen_size(screen_w, screen_h);
+
+    /* game setup */
     GameState gs;
     History   history;
 
@@ -52,17 +56,14 @@ int main(void)
     gs.level_index  = 0;
     level_apply(gs.level_index, &gs);
 
-    /* ── Main loop ───────────────────────────────────────────────────── */
     bool running = true;
     SDL_Event e;
 
     while (running) {
-        /* ── Events ─────────────────────────────────────────────────── */
         while (SDL_PollEvent(&e)) {
             Action action = input_handle_event(&e);
 
             switch (action) {
-
                 case ACTION_QUIT:
                     running = false;
                     break;
@@ -72,14 +73,13 @@ int main(void)
                 case ACTION_LEFT:
                 case ACTION_RIGHT:
                     if (!gs.completed) {
-                        /* save state before moving for undo */
                         history_push(&history, &gs);
                         game_update(&gs, action);
                     } else {
-                        /* level complete — any arrow goes to next level */
+                        /* level done — go to next */
                         gs.level_index++;
                         if (gs.level_index >= gs.total_levels)
-                            gs.level_index = 0;   /* wrap back to level 1 */
+                            gs.level_index = 0;
                         history_init(&history);
                         level_apply(gs.level_index, &gs);
                     }
@@ -90,7 +90,6 @@ int main(void)
                     break;
 
                 case ACTION_RESTART:
-                    /* restart current level */
                     history_init(&history);
                     level_apply(gs.level_index, &gs);
                     break;
@@ -100,11 +99,9 @@ int main(void)
             }
         }
 
-        /* ── Render ─────────────────────────────────────────────────── */
         render_frame(ren, &gs);
     }
 
-    /* ── Cleanup ─────────────────────────────────────────────────────── */
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
     SDL_Quit();
