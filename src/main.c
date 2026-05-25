@@ -1,52 +1,14 @@
+#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdbool.h>
+
 #include "types.h"
-
-/* ── Draw one tile cell at grid position (col, row) ──────────────────── */
-static void draw_tile(SDL_Renderer *ren, int col, int row, Tile tile)
-{
-    SDL_Rect rect = {
-        .x = col * TILE_SIZE,
-        .y = row * TILE_SIZE,
-        .w = TILE_SIZE,
-        .h = TILE_SIZE
-    };
-
-    Color c;
-    switch (tile) {
-        case TILE_WALL:   c = COLOR_WALL;   break;
-        case TILE_FLOOR:  c = COLOR_FLOOR;  break;
-        case TILE_TARGET: c = COLOR_TARGET; break;
-        case TILE_BOX:    c = COLOR_BOX;    break;
-        case TILE_BOX_ON: c = COLOR_BOX_ON; break;
-        case TILE_PLAYER: c = COLOR_PLAYER; break;
-        default:          c = COLOR_BG;     break;
-    }
-
-    /* filled tile */
-    SDL_SetRenderDrawColor(ren, c.r, c.g, c.b, c.a);
-    SDL_RenderFillRect(ren, &rect);
-
-    /* 1-px grid border so every cell is visible */
-    SDL_SetRenderDrawColor(ren,
-        COLOR_GRID.r, COLOR_GRID.g, COLOR_GRID.b, COLOR_GRID.a);
-    SDL_RenderDrawRect(ren, &rect);
-}
-
-/* ── Temporary demo grid (replaced by level loader in next step) ──────── */
-static const Tile demo_grid[GRID_ROWS][GRID_COLS] = {
-    {1,1,1,1,1,1,1,1,1,1,1,1},
-    {1,2,2,2,2,2,2,2,2,2,2,1},
-    {1,2,1,1,2,2,2,2,2,2,2,1},
-    {1,2,1,4,2,2,3,2,2,2,2,1},
-    {1,2,2,2,2,2,2,2,2,2,2,1},
-    {1,2,2,6,2,2,2,5,2,2,2,1},
-    {1,2,2,2,2,2,2,2,2,2,2,1},
-    {1,2,2,2,2,2,2,2,2,2,2,1},
-    {1,2,2,2,2,2,2,2,2,2,2,1},
-    {1,1,1,1,1,1,1,1,1,1,1,1}
-};
+#include "game.h"
+#include "input.h"
+#include "history.h"
+#include "level.h"
+#include "render.h"
 
 int main(void)
 {
@@ -79,29 +41,67 @@ int main(void)
         return 1;
     }
 
+    /* ── Game setup ──────────────────────────────────────────────────── */
+    GameState gs;
+    History   history;
+
+    game_init(&gs);
+    history_init(&history);
+
+    gs.total_levels = level_get_total();
+    gs.level_index  = 0;
+    level_apply(gs.level_index, &gs);
+
     /* ── Main loop ───────────────────────────────────────────────────── */
     bool running = true;
     SDL_Event e;
 
     while (running) {
-        /* events */
+        /* ── Events ─────────────────────────────────────────────────── */
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT)                       running = false;
-            if (e.type == SDL_KEYDOWN &&
-                e.key.keysym.sym == SDLK_ESCAPE)          running = false;
+            Action action = input_handle_event(&e);
+
+            switch (action) {
+
+                case ACTION_QUIT:
+                    running = false;
+                    break;
+
+                case ACTION_UP:
+                case ACTION_DOWN:
+                case ACTION_LEFT:
+                case ACTION_RIGHT:
+                    if (!gs.completed) {
+                        /* save state before moving for undo */
+                        history_push(&history, &gs);
+                        game_update(&gs, action);
+                    } else {
+                        /* level complete — any arrow goes to next level */
+                        gs.level_index++;
+                        if (gs.level_index >= gs.total_levels)
+                            gs.level_index = 0;   /* wrap back to level 1 */
+                        history_init(&history);
+                        level_apply(gs.level_index, &gs);
+                    }
+                    break;
+
+                case ACTION_UNDO:
+                    history_pop(&history, &gs);
+                    break;
+
+                case ACTION_RESTART:
+                    /* restart current level */
+                    history_init(&history);
+                    level_apply(gs.level_index, &gs);
+                    break;
+
+                default:
+                    break;
+            }
         }
 
-        /* clear */
-        SDL_SetRenderDrawColor(ren,
-            COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, COLOR_BG.a);
-        SDL_RenderClear(ren);
-
-        /* draw every tile in the demo grid */
-        for (int row = 0; row < GRID_ROWS; row++)
-            for (int col = 0; col < GRID_COLS; col++)
-                draw_tile(ren, col, row, demo_grid[row][col]);
-
-        SDL_RenderPresent(ren);
+        /* ── Render ─────────────────────────────────────────────────── */
+        render_frame(ren, &gs);
     }
 
     /* ── Cleanup ─────────────────────────────────────────────────────── */
