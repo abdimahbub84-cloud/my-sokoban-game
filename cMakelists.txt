@@ -5,7 +5,14 @@ set(CMAKE_C_STANDARD 99)
 
 find_package(SDL2 REQUIRED)
 
-add_executable(sokoban src/main.c)
+add_executable(sokoban
+    src/main.c
+    src/game.c
+    src/input.c
+    src/history.c
+    src/level.c
+    src/render.c
+)
 
 target_include_directories(sokoban PRIVATE ${SDL2_INCLUDE_DIRS} src)
-target_link_libraries(sokoban PRIVATE SDL2)
+target_link_libraries(sokoban PRIVATE SDL2::SDL2)
