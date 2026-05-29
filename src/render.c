@@ -179,7 +179,29 @@ static void draw_hud(SDL_Renderer *ren, const GameState *gs)
 {
     fill_rect(ren, 0, SCREEN_H-44, SCREEN_W, 44, (Color){15,15,15,255});
 
-    static const unsigned char digits[10][7] = {
+    /* ── Timer — show REMAINING time (60s limit) ── */
+    Uint32 remaining_ms = 60000 > gs->elapsed_ms ? 60000 - gs->elapsed_ms : 0;
+    Uint32 secs = remaining_ms / 1000;
+    Uint32 mins = secs / 60;
+    secs = secs % 60;
+    /* turn red when under 10 seconds */
+    Color timer_color = (remaining_ms <= 10000)
+                        ? (Color){255, 60, 60, 255}
+                        : (Color){255, 220, 0, 255};
+
+    /* draw timer label box */
+    fill_rect(ren, 10, SCREEN_H-38, 120, 30, (Color){40,40,40,255});
+
+    /* draw MM:SS using pixel font */
+    char time_str[8];
+    time_str[0] = '0' + (mins / 10) % 10;
+    time_str[1] = '0' + mins % 10;
+    time_str[2] = ':';
+    time_str[3] = '0' + secs / 10;
+    time_str[4] = '0' + secs % 10;
+    time_str[5] = '\0';
+
+    static const unsigned char dg[10][7] = {
         {0x7,0x5,0x5,0x5,0x5,0x5,0x7},
         {0x2,0x6,0x2,0x2,0x2,0x2,0x7},
         {0x7,0x1,0x1,0x7,0x4,0x4,0x7},
@@ -192,38 +214,68 @@ static void draw_hud(SDL_Renderer *ren, const GameState *gs)
         {0x7,0x5,0x5,0x7,0x1,0x1,0x7},
     };
 
-    int num  = gs->level_index + 1;
-    int tens = num / 10;
-    int ones = num % 10;
-    int bx   = 18;
-    int by   = SCREEN_H - 34;
-    int bs   = 3;
+    int bx = 14;
+    int by = SCREEN_H - 36;
+    int bs = 2;
 
-    if (tens > 0) {
+    for (int ci = 0; time_str[ci]; ci++) {
+        char ch = time_str[ci];
+        if (ch == ':') {
+            /* draw colon as two dots */
+            fill_rect(ren, bx+1, by+1,  bs, bs, timer_color);
+            fill_rect(ren, bx+1, by+5,  bs, bs, timer_color);
+            bx += 6;
+            continue;
+        }
+        int d = ch - '0';
         for (int row = 0; row < 7; row++)
             for (int col = 0; col < 3; col++)
-                if (digits[tens][row] & (4 >> col))
+                if (dg[d][row] & (4 >> col))
                     fill_rect(ren, bx+col*(bs+1), by+row*(bs+1), bs, bs,
-                              (Color){255,220,0,255});
-        bx += 16;
+                              timer_color);
+        bx += 4*(bs+1);
+    }
+
+    /* ── Move counter as actual number ── */
+    fill_rect(ren, 145, SCREEN_H-38, 100, 30, (Color){40,40,40,255});
+
+    int moves = gs->move_count;
+    int hundreds = moves / 100;
+    int tens2    = (moves % 100) / 10;
+    int ones2    = moves % 10;
+
+    bx = 150;
+    by = SCREEN_H - 36;
+
+    if (hundreds > 0) {
+        for (int row = 0; row < 7; row++)
+            for (int col = 0; col < 3; col++)
+                if (dg[hundreds][row] & (4 >> col))
+                    fill_rect(ren, bx+col*(bs+1), by+row*(bs+1), bs, bs,
+                              (Color){60,140,220,255});
+        bx += 4*(bs+1);
+    }
+    if (hundreds > 0 || tens2 > 0) {
+        for (int row = 0; row < 7; row++)
+            for (int col = 0; col < 3; col++)
+                if (dg[tens2][row] & (4 >> col))
+                    fill_rect(ren, bx+col*(bs+1), by+row*(bs+1), bs, bs,
+                              (Color){60,140,220,255});
+        bx += 4*(bs+1);
     }
     for (int row = 0; row < 7; row++)
         for (int col = 0; col < 3; col++)
-            if (digits[ones][row] & (4 >> col))
+            if (dg[ones2][row] & (4 >> col))
                 fill_rect(ren, bx+col*(bs+1), by+row*(bs+1), bs, bs,
-                          (Color){255,220,0,255});
+                          (Color){60,140,220,255});
 
+    /* ── Level progress dots ── */
     for (int i = 0; i < gs->total_levels && i < 50; i++) {
         Color c = (i == gs->level_index) ? (Color){255,220,  0,255}
                 : (i <  gs->level_index) ? (Color){ 80,160, 80,255}
                 :                          (Color){ 50, 50, 50,255};
-        fill_rect(ren, 90+i*13, SCREEN_H-34, 11, 22, c);
+        fill_rect(ren, 260+i*13, SCREEN_H-30, 11, 18, c);
     }
-
-    int moves = gs->move_count > 50 ? 50 : gs->move_count;
-    for (int i = 0; i < moves; i++)
-        fill_rect(ren, SCREEN_W-8-i*10, SCREEN_H-34, 8, 22,
-                  (Color){60,140,220,255});
 }
 
 /* ── Draw button helper ──────────────────────────────────────────────── */
