@@ -1,0 +1,12 @@
+[33ma45ab66[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Updated level.c - corrected state reset in level_apply function
+[33m8ccfb69[m update .gitignore to exclude DLLs and CMake build files
+[33m69b4238[m Updated main.c - connected all modules, full game loop with undo, restart and level transitions
+[33m4603da5[m Updated main.c - connected all modules, full game loop with undo, restart and level transitions
+[33m76f4aca[m Added render.c and render.h - tile drawing, player, boxes, HUD, level complete screen
+[33m8d4507d[m Added history.c and history.h - undo stack up to 256 moves
+[33m84d860b[m Added level.c and level.h - all 50 original Sokoban levels hardcoded
+[33m72e7fd8[m add gitignore
+[33m7f6e6e0[m Added game.c and game.h - player movement, box pushing, win condition
+[33m7e1035c[m made the inputs i am gonna use
+[33m6bc6f23[m create main file and added source and assets folders
+[33m9f3362f[m first commit

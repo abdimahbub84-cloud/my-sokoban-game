@@ -10,6 +10,13 @@
 #include "level.h"
 #include "render.h"
 
+/* ── Check if a point is inside a rect ──────────────────────────────── */
+static int point_in_rect(int x, int y, SDL_Rect r)
+{
+    return x >= r.x && x <= r.x + r.w &&
+           y >= r.y && y <= r.y + r.h;
+}
+
 int main(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -40,12 +47,10 @@ int main(void)
         return 1;
     }
 
-    /* get actual fullscreen size and tell renderer */
     int screen_w, screen_h;
     SDL_GetWindowSize(win, &screen_w, &screen_h);
     render_set_screen_size(screen_w, screen_h);
 
-    /* game setup */
     GameState gs;
     History   history;
 
@@ -61,6 +66,28 @@ int main(void)
 
     while (running) {
         while (SDL_PollEvent(&e)) {
+
+            /* ── Mouse click — only active when level is complete ─── */
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                if (gs.completed) {
+                    int mx = e.button.x;
+                    int my = e.button.y;
+
+                    if (point_in_rect(mx, my, g_btn_next)) {
+                        /* NEXT LEVEL */
+                        gs.level_index++;
+                        if (gs.level_index >= gs.total_levels)
+                            gs.level_index = 0;
+                        history_init(&history);
+                        level_apply(gs.level_index, &gs);
+                    } else if (point_in_rect(mx, my, g_btn_quit)) {
+                        /* QUIT */
+                        running = false;
+                    }
+                }
+            }
+
+            /* ── Keyboard ────────────────────────────────────────── */
             Action action = input_handle_event(&e);
 
             switch (action) {
@@ -75,18 +102,12 @@ int main(void)
                     if (!gs.completed) {
                         history_push(&history, &gs);
                         game_update(&gs, action);
-                    } else {
-                        /* level done — go to next */
-                        gs.level_index++;
-                        if (gs.level_index >= gs.total_levels)
-                            gs.level_index = 0;
-                        history_init(&history);
-                        level_apply(gs.level_index, &gs);
                     }
                     break;
 
                 case ACTION_UNDO:
-                    history_pop(&history, &gs);
+                    if (!gs.completed)
+                        history_pop(&history, &gs);
                     break;
 
                 case ACTION_RESTART:
