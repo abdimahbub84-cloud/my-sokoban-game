@@ -10,6 +10,11 @@
 #include "level.h"
 #include "render.h"
 
+typedef enum {
+    STATE_MENU,
+    STATE_PLAYING
+} AppState;
+
 static int point_in_rect(int x, int y, SDL_Rect r)
 {
     return x >= r.x && x <= r.x + r.w &&
@@ -55,22 +60,48 @@ int main(void)
 
     gs.total_levels = level_get_total();
     gs.level_index  = 0;
-    load_level(&gs, &history, 0);
 
+    AppState app_state = STATE_MENU;
     bool running = true;
     SDL_Event e;
 
     while (running) {
-        /* update timer every frame */
-        if (game_time_up(&gs)) {
-            load_level(&gs, &history, gs.level_index);
+
+        /* ── Menu state ─────────────────────────────────────────────── */
+        if (app_state == STATE_MENU) {
+            render_menu(ren);
+
+            while (SDL_PollEvent(&e)) {
+                if (e.type == SDL_QUIT) running = false;
+                if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
+                    running = false;
+
+                if (e.type == SDL_MOUSEBUTTONDOWN &&
+                    e.button.button == SDL_BUTTON_LEFT) {
+                    int mx = e.button.x;
+                    int my = e.button.y;
+
+                    if (point_in_rect(mx, my, g_btn_play)) {
+                        load_level(&gs, &history, 0);
+                        app_state = STATE_PLAYING;
+                    } else if (point_in_rect(mx, my, g_btn_menu_quit)) {
+                        running = false;
+                    }
+                }
+            }
             continue;
         }
+
+        /* ── Playing state ──────────────────────────────────────────── */
         game_tick(&gs);
+
+        if (game_time_up(&gs))
+            load_level(&gs, &history, gs.level_index);
 
         while (SDL_PollEvent(&e)) {
 
-            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+            if (e.type == SDL_MOUSEBUTTONDOWN &&
+                e.button.button == SDL_BUTTON_LEFT) {
                 if (gs.completed) {
                     int mx = e.button.x;
                     int my = e.button.y;

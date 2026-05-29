@@ -405,6 +405,71 @@ static void draw_complete(SDL_Renderer *ren, int level)
               (Color){255,255,255,255});
 }
 
+
+/* ── Menu button rects ───────────────────────────────────────────────── */
+SDL_Rect g_btn_play = {0};
+SDL_Rect g_btn_menu_quit = {0};
+
+/* ── Draw main menu ──────────────────────────────────────────────────── */
+void render_menu(SDL_Renderer *ren)
+{
+    /* background */
+    fill_rect(ren, 0, 0, SCREEN_W, SCREEN_H, (Color){20, 20, 30, 255});
+
+    /* decorative tiles as background pattern */
+    for (int row = 0; row < SCREEN_H/64+1; row++)
+        for (int col = 0; col < SCREEN_W/64+1; col++)
+            fill_rect(ren, col*64, row*64, 62, 62, (Color){30, 30, 40, 255});
+
+    /* title box */
+    int tw = 500, th = 120;
+    int tx = SCREEN_W/2 - tw/2;
+    int ty = SCREEN_H/4 - th/2;
+    fill_rect(ren, tx, ty, tw, th, (Color){15, 15, 25, 255});
+    set_color(ren, (Color){255, 220, 0, 255});
+    SDL_Rect tbox = { tx, ty, tw, th };
+    SDL_RenderDrawRect(ren, &tbox);
+    SDL_Rect tbox2 = { tx+3, ty+3, tw-6, th-6 };
+    SDL_RenderDrawRect(ren, &tbox2);
+
+    /* SOKOBAN title text */
+    draw_text(ren, tx + 30,  ty + 20, "SOKOBAN", 8, (Color){255, 220, 0, 255});
+
+    /* subtitle */
+    draw_text(ren, SCREEN_W/2 - 160, ty + th + 20, "BOX PUSHING PUZZLE", 3,
+              (Color){180, 180, 180, 255});
+
+    /* SpongeBob decoration on the left */
+    int sb_x = SCREEN_W/2 - 280;
+    int sb_y = SCREEN_H/2 - 60;
+    draw_spongebob(ren, sb_x, sb_y, 100, 0);
+
+    /* cat decoration on the right */
+    int cat_x = SCREEN_W/2 + 180;
+    int cat_y = SCREEN_H/2 - 60;
+    draw_cat(ren, cat_x, cat_y, 100);
+
+    /* PLAY button */
+    g_btn_play = (SDL_Rect){ SCREEN_W/2 - 120, SCREEN_H/2 + 60, 240, 70 };
+    draw_button(ren, g_btn_play,
+                (Color){0, 150, 0, 255},
+                (Color){0, 255, 0, 255},
+                (Color){255,255,255,255});
+    draw_text(ren, g_btn_play.x + 50, g_btn_play.y + 18, "PLAY", 5,
+              (Color){255, 255, 255, 255});
+
+    /* QUIT button */
+    g_btn_menu_quit = (SDL_Rect){ SCREEN_W/2 - 120, SCREEN_H/2 + 150, 240, 70 };
+    draw_button(ren, g_btn_menu_quit,
+                (Color){180, 0, 0, 255},
+                (Color){255, 60, 60, 255},
+                (Color){255,255,255,255});
+    draw_text(ren, g_btn_menu_quit.x + 50, g_btn_menu_quit.y + 18, "QUIT", 5,
+              (Color){255, 255, 255, 255});
+
+    SDL_RenderPresent(ren);
+}
+
 void render_frame(SDL_Renderer *ren, const GameState *gs)
 {
     set_color(ren, COLOR_BG);
