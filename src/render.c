@@ -514,3 +514,64 @@ void render_frame(SDL_Renderer *ren, const GameState *gs)
 
     SDL_RenderPresent(ren);
 }
+
+/* ── Pause button and screen ─────────────────────────────────────────── */
+SDL_Rect g_btn_pause  = {0};
+SDL_Rect g_btn_resume = {0};
+SDL_Rect g_btn_pause_quit = {0};
+
+void render_pause_button(SDL_Renderer *ren)
+{
+    g_btn_pause = (SDL_Rect){ SCREEN_W - 70, 10, 60, 30 };
+    fill_rect(ren, g_btn_pause.x, g_btn_pause.y,
+              g_btn_pause.w, g_btn_pause.h, (Color){60, 60, 60, 255});
+    set_color(ren, (Color){200, 200, 200, 255});
+    SDL_RenderDrawRect(ren, &g_btn_pause);
+
+    /* two pause bars */
+    fill_rect(ren, g_btn_pause.x + 16, g_btn_pause.y + 8,  8, 14, (Color){255,255,255,255});
+    fill_rect(ren, g_btn_pause.x + 30, g_btn_pause.y + 8,  8, 14, (Color){255,255,255,255});
+}
+
+void render_pause_screen(SDL_Renderer *ren)
+{
+    /* dark overlay */
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    fill_rect(ren, 0, 0, SCREEN_W, SCREEN_H, (Color){0, 0, 0, 160});
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
+
+    /* panel */
+    int pw = 400, ph = 280;
+    int px = SCREEN_W/2 - pw/2;
+    int py = SCREEN_H/2 - ph/2;
+
+    fill_rect(ren, px, py, pw, ph, (Color){20, 20, 20, 255});
+    set_color(ren, (Color){255, 220, 0, 255});
+    SDL_Rect panel = { px, py, pw, ph };
+    SDL_RenderDrawRect(ren, &panel);
+    SDL_Rect panel2 = { px+2, py+2, pw-4, ph-4 };
+    SDL_RenderDrawRect(ren, &panel2);
+
+    /* PAUSED text */
+    draw_text(ren, px + 80, py + 40, "PAUSED", 6, (Color){255, 220, 0, 255});
+
+    /* RESUME button */
+    g_btn_resume = (SDL_Rect){ px + 60, py + 130, 280, 60 };
+    draw_button(ren, g_btn_resume,
+                (Color){0, 150, 0, 255},
+                (Color){0, 255, 0, 255},
+                (Color){255,255,255,255});
+    draw_text(ren, g_btn_resume.x + 40, g_btn_resume.y + 16,
+              "RESUME", 4, (Color){255,255,255,255});
+
+    /* QUIT button */
+    g_btn_pause_quit = (SDL_Rect){ px + 60, py + 200, 280, 60 };
+    draw_button(ren, g_btn_pause_quit,
+                (Color){180, 0, 0, 255},
+                (Color){255, 60, 60, 255},
+                (Color){255,255,255,255});
+    draw_text(ren, g_btn_pause_quit.x + 60, g_btn_pause_quit.y + 16,
+              "QUIT", 4, (Color){255,255,255,255});
+
+    SDL_RenderPresent(ren);
+}

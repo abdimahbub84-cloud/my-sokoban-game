@@ -13,7 +13,8 @@
 
 typedef enum {
     STATE_MENU,
-    STATE_PLAYING
+    STATE_PLAYING,
+    STATE_PAUSED
 } AppState;
 
 static int point_in_rect(int x, int y, SDL_Rect r)
@@ -64,10 +65,11 @@ int main(void)
     gs.total_levels = level_get_total();
     gs.level_index  = 0;
 
-    AppState app_state = STATE_MENU;
-    bool running  = true;
-    int  was_complete = 0;
-    int  warned       = 0;   /* track if warning sound was played */
+    AppState app_state   = STATE_MENU;
+    bool     running     = true;
+    int      was_complete = 0;
+    int      warned       = 0;
+    Uint32   pause_time   = 0;   /* track time spent paused */
     SDL_Event e;
 
     while (running) {
@@ -75,12 +77,10 @@ int main(void)
         /* ── Menu ───────────────────────────────────────────────────── */
         if (app_state == STATE_MENU) {
             render_menu(ren);
-
             while (SDL_PollEvent(&e)) {
                 if (e.type == SDL_QUIT) running = false;
                 if (e.type == SDL_KEYDOWN &&
                     e.key.keysym.sym == SDLK_ESCAPE) running = false;
-
                 if (e.type == SDL_MOUSEBUTTONDOWN &&
                     e.button.button == SDL_BUTTON_LEFT) {
                     int mx = e.button.x, my = e.button.y;
@@ -97,17 +97,40 @@ int main(void)
             continue;
         }
 
+        /* ── Paused ─────────────────────────────────────────────────── */
+        if (app_state == STATE_PAUSED) {
+            render_pause_screen(ren);
+            while (SDL_PollEvent(&e)) {
+                if (e.type == SDL_QUIT) running = false;
+                if (e.type == SDL_MOUSEBUTTONDOWN &&
+                    e.button.button == SDL_BUTTON_LEFT) {
+                    int mx = e.button.x, my = e.button.y;
+                    if (point_in_rect(mx, my, g_btn_resume)) {
+                        /* adjust start time to exclude pause duration */
+                        gs.start_time += SDL_GetTicks() - pause_time;
+                        app_state = STATE_PLAYING;
+                    } else if (point_in_rect(mx, my, g_btn_pause_quit)) {
+                        running = false;
+                    }
+                }
+                if (e.type == SDL_KEYDOWN &&
+                    e.key.keysym.sym == SDLK_ESCAPE) {
+                    gs.start_time += SDL_GetTicks() - pause_time;
+                    app_state = STATE_PLAYING;
+                }
+            }
+            continue;
+        }
+
         /* ── Playing ────────────────────────────────────────────────── */
         game_tick(&gs);
 
-        /* time warning sound */
         Uint32 remaining = 60000 > gs.elapsed_ms ? 60000 - gs.elapsed_ms : 0;
         if (remaining <= 10000 && remaining > 0 && !warned && !gs.completed) {
             sound_play_warning();
             warned = 1;
         }
 
-        /* time up — restart */
         if (game_time_up(&gs)) {
             load_level(&gs, &history, gs.level_index);
             was_complete = 0;
@@ -118,8 +141,17 @@ int main(void)
 
             if (e.type == SDL_MOUSEBUTTONDOWN &&
                 e.button.button == SDL_BUTTON_LEFT) {
+                int mx = e.button.x, my = e.button.y;
+
+                /* pause button */
+                if (point_in_rect(mx, my, g_btn_pause) && !gs.completed) {
+                    pause_time = SDL_GetTicks();
+                    app_state  = STATE_PAUSED;
+                    break;
+                }
+
+                /* level complete buttons */
                 if (gs.completed) {
-                    int mx = e.button.x, my = e.button.y;
                     if (point_in_rect(mx, my, g_btn_next)) {
                         gs.level_index++;
                         if (gs.level_index >= gs.total_levels)
@@ -134,7 +166,6 @@ int main(void)
             }
 
             Action action = input_handle_event(&e);
-
             switch (action) {
                 case ACTION_QUIT:
                     running = false;
@@ -148,13 +179,11 @@ int main(void)
                         history_push(&history, &gs);
                         game_update(&gs, action);
 
-                        /* check if a box moved */
                         int box_moved = 0;
                         for (int b = 0; b < gs.box_count; b++) {
                             if (gs.boxes[b].x != before.boxes[b].x ||
                                 gs.boxes[b].y != before.boxes[b].y) {
                                 box_moved = 1;
-                                /* check if now on target */
                                 if (gs.grid[gs.boxes[b].y][gs.boxes[b].x]
                                     == TILE_TARGET)
                                     sound_play_target();
@@ -168,7 +197,6 @@ int main(void)
                              gs.player.y != before.player.y))
                             sound_play_push();
 
-                        /* level complete sound */
                         if (gs.completed && !was_complete) {
                             sound_play_complete();
                             was_complete = 1;
@@ -190,6 +218,8 @@ int main(void)
         }
 
         render_frame(ren, &gs);
+        render_pause_button(ren);
+        SDL_RenderPresent(ren);
     }
 
     sound_quit();
