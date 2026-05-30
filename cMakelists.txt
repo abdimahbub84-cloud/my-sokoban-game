@@ -12,7 +12,8 @@ add_executable(sokoban
     src/history.c
     src/level.c
     src/render.c
+    src/sound.c
 )
 
 target_include_directories(sokoban PRIVATE ${SDL2_INCLUDE_DIRS} src)
-target_link_libraries(sokoban PRIVATE SDL2::SDL2)
+target_link_libraries(sokoban PRIVATE SDL2::SDL2 SDL2_mixer)
