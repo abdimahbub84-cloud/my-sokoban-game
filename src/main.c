@@ -219,7 +219,6 @@ int main(void)
 
         render_frame(ren, &gs);
         render_pause_button(ren);
-        SDL_RenderPresent(ren);
     }
 
     sound_quit();

@@ -3,6 +3,9 @@
 #include "types.h"
 #include <SDL2/SDL.h>
 
+/* ── Global game state pointer for animation ─────────────────────────── */
+const GameState *g_gs_ptr = NULL;
+
 static int SCREEN_W = 768;
 static int SCREEN_H = 640;
 
@@ -129,6 +132,13 @@ static void draw_spongebob(SDL_Renderer *ren, int px, int py, int ts, int on_tar
 
 static void draw_cat(SDL_Renderer *ren, int px, int py, int ts)
 {
+    /* get animation state from global game state */
+    extern const GameState *g_gs_ptr;
+    int facing    = g_gs_ptr ? g_gs_ptr->facing    : 0;
+    int is_moving = g_gs_ptr ? g_gs_ptr->is_moving  : 0;
+    Uint32 tick   = g_gs_ptr ? g_gs_ptr->anim_tick  : 0;
+    Uint32 idle   = g_gs_ptr ? SDL_GetTicks()        : 0;
+
     Color orange = {220,140, 50,255};
     Color dark   = { 80, 40, 10,255};
     Color white  = {255,255,255,255};
@@ -141,34 +151,77 @@ static void draw_cat(SDL_Renderer *ren, int px, int py, int ts)
     int br = ts/4;
     int hr = ts*9/32;
 
-    fill_circle(ren, cx, cy+br/2, br,  orange);
-    fill_circle(ren, cx, cy-br/4, hr,  orange);
+    /* ── walking leg animation ── */
+    int leg_off = 0;
+    if (is_moving) leg_off = (tick % 2 == 0) ? 3 : -3;
 
-    fill_rect(ren, cx-hr-2,   cy-hr,   hr/2+2, hr/2+2, orange);
-    fill_rect(ren, cx-hr,     cy-hr-2, hr/2-2, hr/2-2, pink);
-    fill_rect(ren, cx+hr/2,   cy-hr,   hr/2+2, hr/2+2, orange);
-    fill_rect(ren, cx+hr/2+2, cy-hr-2, hr/2-2, hr/2-2, pink);
+    /* body */
+    fill_circle(ren, cx, cy+br/2, br, orange);
 
+    /* legs — animated when moving */
+    if (facing == 0 || facing == 1) {
+        /* moving left/right — legs bounce up/down */
+        fill_rect(ren, cx-ts/5, cy+br+2,      ts/8, ts/6 + leg_off,  orange);
+        fill_rect(ren, cx+ts/8, cy+br+2,      ts/8, ts/6 - leg_off,  orange);
+    } else {
+        /* moving up/down — legs side to side */
+        fill_rect(ren, cx-ts/5+leg_off, cy+br+2, ts/8, ts/6, orange);
+        fill_rect(ren, cx+ts/8-leg_off, cy+br+2, ts/8, ts/6, orange);
+    }
+
+    /* head — flip horizontally when facing left */
+    int flip = (facing == 1) ? -1 : 1;
+    fill_circle(ren, cx, cy-br/4, hr, orange);
+
+    /* ears */
+    fill_rect(ren, cx - flip*(hr+2), cy-hr,   hr/2+2, hr/2+2, orange);
+    fill_rect(ren, cx - flip*hr,     cy-hr-2, hr/2-2, hr/2-2, pink);
+    fill_rect(ren, cx + flip*(hr/2), cy-hr,   hr/2+2, hr/2+2, orange);
+    fill_rect(ren, cx + flip*(hr/2+2), cy-hr-2, hr/2-2, hr/2-2, pink);
+
+    /* eyes */
     int er = ts/14;
-    fill_circle(ren, cx-hr/2, cy-hr/3, er+1, white);
-    fill_circle(ren, cx+hr/2, cy-hr/3, er+1, white);
-    fill_circle(ren, cx-hr/2, cy-hr/3, er-1, green);
-    fill_circle(ren, cx+hr/2, cy-hr/3, er-1, green);
-    fill_circle(ren, cx-hr/2, cy-hr/3, er/2, black);
-    fill_circle(ren, cx+hr/2, cy-hr/3, er/2, black);
+    int ex1 = cx - flip*(hr/2);
+    int ex2 = cx + flip*(hr/2);
+    int ey  = cy - hr/3;
 
-    fill_rect(ren, cx-2, cy-1, 5, 4, pink);
+    /* blink every 3 seconds */
+    int blink = ((idle / 3000) % 10 == 0) ? 1 : 0;
 
+    fill_circle(ren, ex1, ey, er+1, white);
+    fill_circle(ren, ex2, ey, er+1, white);
+    if (!blink) {
+        fill_circle(ren, ex1, ey, er-1, green);
+        fill_circle(ren, ex2, ey, er-1, green);
+        fill_circle(ren, ex1, ey, er/2, black);
+        fill_circle(ren, ex2, ey, er/2, black);
+    } else {
+        /* closed eyes — just a line */
+        set_color(ren, dark);
+        SDL_RenderDrawLine(ren, ex1-er, ey, ex1+er, ey);
+        SDL_RenderDrawLine(ren, ex2-er, ey, ex2+er, ey);
+    }
+
+    /* nose */
+    fill_rect(ren, cx - flip*2, cy-1, 5, 4, pink);
+
+    /* whiskers */
     set_color(ren, dark);
-    SDL_RenderDrawLine(ren, cx-2, cy,   cx-hr-4, cy-2);
-    SDL_RenderDrawLine(ren, cx-2, cy+2, cx-hr-4, cy+4);
-    SDL_RenderDrawLine(ren, cx+2, cy,   cx+hr+4, cy-2);
-    SDL_RenderDrawLine(ren, cx+2, cy+2, cx+hr+4, cy+4);
+    SDL_RenderDrawLine(ren, cx-2, cy,   cx - flip*(hr+4), cy-2);
+    SDL_RenderDrawLine(ren, cx-2, cy+2, cx - flip*(hr+4), cy+4);
+    SDL_RenderDrawLine(ren, cx+2, cy,   cx + flip*(hr+4), cy-2);
+    SDL_RenderDrawLine(ren, cx+2, cy+2, cx + flip*(hr+4), cy+4);
 
+    /* ── tail wag animation (idle) ── */
+    int tail_wag = (int)((idle / 300) % 3) - 1;   /* -1, 0, 1 */
+    int tx = cx + flip * hr;
+    int ty = cy + br/2;
     set_color(ren, orange);
-    SDL_RenderDrawLine(ren, cx+hr,   cy+br/2, cx+hr+10, cy);
-    SDL_RenderDrawLine(ren, cx+hr+1, cy+br/2, cx+hr+11, cy);
+    SDL_RenderDrawLine(ren, tx,   ty, tx + flip*10, ty - 8 + tail_wag*4);
+    SDL_RenderDrawLine(ren, tx+1, ty, tx + flip*11, ty - 8 + tail_wag*4);
+    SDL_RenderDrawLine(ren, tx+2, ty, tx + flip*12, ty - 8 + tail_wag*4);
 
+    /* stripes */
     set_color(ren, dark);
     SDL_RenderDrawLine(ren, cx-hr/2,   cy-hr,   cx-hr/2+2, cy-hr/2);
     SDL_RenderDrawLine(ren, cx,        cy-hr-2, cx,        cy-hr/2);
@@ -472,6 +525,7 @@ void render_menu(SDL_Renderer *ren)
 
 void render_frame(SDL_Renderer *ren, const GameState *gs)
 {
+    g_gs_ptr = gs;   /* make game state available to draw_cat */
     set_color(ren, COLOR_BG);
     SDL_RenderClear(ren);
 

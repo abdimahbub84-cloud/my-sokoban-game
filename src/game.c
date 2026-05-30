@@ -30,6 +30,12 @@ static void try_move(GameState *gs, int dx, int dy)
     int nx = gs->player.x + dx;
     int ny = gs->player.y + dy;
 
+    /* update facing direction */
+    if      (dx > 0) gs->facing = 0;   /* right */
+    else if (dx < 0) gs->facing = 1;   /* left  */
+    else if (dy < 0) gs->facing = 2;   /* up    */
+    else if (dy > 0) gs->facing = 3;   /* down  */
+
     if (nx < 0 || nx >= gs->cols || ny < 0 || ny >= gs->rows) return;
 
     Tile next = gs->grid[ny][nx];
@@ -50,10 +56,12 @@ static void try_move(GameState *gs, int dx, int dy)
         gs->boxes[box_idx].y = by;
     }
 
-    gs->player.x = nx;
-    gs->player.y = ny;
+    gs->player.x  = nx;
+    gs->player.y  = ny;
     gs->move_count++;
-    gs->completed = game_is_complete(gs);
+    gs->is_moving  = 1;
+    gs->anim_tick++;
+    gs->completed  = game_is_complete(gs);
 }
 
 void game_update(GameState *gs, Action action)
@@ -87,8 +95,9 @@ void game_tick(GameState *gs)
     if (!gs->completed) {
         gs->elapsed_ms = SDL_GetTicks() - gs->start_time;
         if (gs->elapsed_ms >= 60000)
-            gs->elapsed_ms = 60000;   /* cap at 60s */
+            gs->elapsed_ms = 60000;
     }
+    gs->is_moving = 0;   /* reset each frame, set by try_move if moved */
 }
 
 int game_time_up(const GameState *gs)

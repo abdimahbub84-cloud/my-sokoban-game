@@ -21,6 +21,9 @@ typedef struct {
     int     completed;
     Uint32  start_time;    /* SDL tick when level started  */
     Uint32  elapsed_ms;    /* milliseconds spent on level  */
+    int     facing;        /* 0=right 1=left 2=up 3=down   */
+    int     is_moving;     /* 1 if moved this frame         */
+    Uint32  anim_tick;     /* frame counter for animation   */
 } GameState;
 
 void game_init(GameState *gs);
